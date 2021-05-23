@@ -1,5 +1,7 @@
+type PrimitiveType = string | number
+
 type PropsType = {
-  [key: string]: string | number | NodeType[]
+  [key: string]: PrimitiveType | NodeType[]
 }
 
 type NodeType = {
@@ -7,7 +9,7 @@ type NodeType = {
   props: PropsType
 }
 
-function createElement(
+export function createElement(
   type: string,
   props?: PropsType | null,
   ...children: (string | number | NodeType)[]
