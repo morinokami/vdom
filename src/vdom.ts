@@ -34,3 +34,21 @@ function createTextElement(text: string | number): NodeType {
     },
   }
 }
+
+export function render(element: NodeType, container: HTMLElement | Text): void {
+  const dom =
+    element.type === 'TEXT_ELEMENT'
+      ? document.createTextNode('')
+      : document.createElement(element.type)
+
+  const isProperty = (key: string) => key !== 'children'
+  Object.keys(element.props)
+    .filter(isProperty)
+    // @ts-ignore
+    .forEach((name) => (dom[name] = element.props[name]))
+
+  const children = element.props.children as NodeType[]
+  children.forEach((child) => render(child, dom))
+
+  container.appendChild(dom)
+}

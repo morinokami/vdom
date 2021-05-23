@@ -1,4 +1,4 @@
-import { createElement } from './vdom'
+import { createElement, render } from './vdom'
 
 describe('createElement', () => {
   test('div', () => {
@@ -77,5 +77,14 @@ describe('createElement', () => {
       },
     }
     expect(res).toMatchObject(expected)
+  })
+})
+
+describe('render', () => {
+  test('elements are rendered', () => {
+    const container = document.createElement('div')
+    const root = createElement('p', null, 'hello')
+    render(root, container)
+    expect(container.childElementCount).toBe(1)
   })
 })
