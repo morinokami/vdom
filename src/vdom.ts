@@ -14,7 +14,7 @@ type RootElementType = {
 }
 
 type ElementType = {
-  type?: string
+  type?: string | FunctionComponentType
   props: PropsType
   child?: ElementType | null
   parent?: ElementType | null
@@ -25,8 +25,10 @@ type ElementType = {
   effectTag?: 'PLACEMENT' | 'DELETION' | 'UPDATE'
 }
 
+type FunctionComponentType = (props: PropsType) => ElementType
+
 export function createElement(
-  type: string,
+  type: string | FunctionComponentType,
   props?: PropsType | null,
   ...children: (string | number | ElementType)[]
 ): ElementType {
@@ -89,13 +91,12 @@ function workLoop(deadline: IdleDeadline) {
 
 // Performs a unit of work and returns the next unit of work
 function performUnitOfWork(fiber: ElementType) {
-  // add dom node
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber)
+  const isFunctionComponent = fiber.type instanceof Function
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber)
+  } else {
+    updateHostComponent(fiber)
   }
-
-  const children = fiber.props.children as ElementType[]
-  reconcileChildren(fiber, children)
 
   // Search for the next unit of work (child -> sibling -> uncle)
   if (fiber.child) {
@@ -108,6 +109,22 @@ function performUnitOfWork(fiber: ElementType) {
     }
     nextFiber = nextFiber.parent
   }
+}
+
+function updateFunctionComponent(fiber: ElementType) {
+  const f = fiber.type as FunctionComponentType
+  const children = [f(fiber.props)]
+  reconcileChildren(fiber, children)
+}
+
+function updateHostComponent(fiber: ElementType) {
+  // add dom node
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber)
+  }
+
+  const children = fiber.props.children as ElementType[]
+  reconcileChildren(fiber, children)
 }
 
 // Reconcile the old fibers with the new elements
@@ -245,12 +262,16 @@ function commitWork(fiber: ElementType | null | undefined) {
     return
   }
 
-  const domParent = fiber.parent?.dom
+  let domParentFiber = fiber.parent
+  while (!domParentFiber?.dom) {
+    domParentFiber = domParentFiber?.parent
+  }
+  const domParent = domParentFiber.dom
   if (fiber.dom) {
     if (fiber.effectTag === 'PLACEMENT') {
       domParent?.appendChild(fiber.dom)
     } else if (fiber.effectTag === 'DELETION') {
-      domParent?.removeChild(fiber.dom)
+      commitDeletion(fiber, domParent)
     } else if (fiber.effectTag === 'UPDATE' && fiber.prev) {
       updateDom(fiber.dom, fiber.prev.props, fiber.props)
     }
@@ -258,6 +279,17 @@ function commitWork(fiber: ElementType | null | undefined) {
 
   commitWork(fiber.child)
   commitWork(fiber.sibling)
+}
+
+function commitDeletion(
+  fiber: ElementType | null | undefined,
+  domParent: HTMLElement | Text,
+) {
+  if (fiber?.dom) {
+    domParent.removeChild(fiber.dom)
+  } else {
+    commitDeletion(fiber?.child, domParent)
+  }
 }
 
 requestIdleCallback(workLoop)
