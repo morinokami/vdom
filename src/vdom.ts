@@ -58,6 +58,9 @@ let currentRoot: RootElementType | null = null
 let wipRoot: RootElementType | null = null
 let deletions: ElementType[] | null = null
 
+let wipFiber: ElementType | null = null
+let hookIndex: number | null = null
+
 export function render(
   element: ElementType,
   container: HTMLElement | Text,
@@ -112,9 +115,41 @@ function performUnitOfWork(fiber: ElementType) {
 }
 
 function updateFunctionComponent(fiber: ElementType) {
+  wipFiber = fiber
+  hookIndex = 0
+  wipFiber.hooks = []
   const f = fiber.type as FunctionComponentType
   const children = [f(fiber.props)]
   reconcileChildren(fiber, children)
+}
+
+export function useState(initial) {
+  const oldHook =
+    wipFiber?.prev && wipFiber.prev.hooks && wipFiber.prev.hooks[hookIndex]
+  const hook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  }
+
+  const actions = oldHook ? oldHook.queue : []
+  actions.forEach((action) => {
+    hook.state = action(hook.state)
+  })
+
+  const setState = (action) => {
+    hook.queue.push(action)
+    wipRoot = {
+      dom: currentRoot?.dom,
+      props: currentRoot?.props,
+      prev: currentRoot,
+    }
+    nextUnitOfWork = wipRoot
+    deletions = []
+  }
+
+  wipFiber?.hooks?.push(hook)
+  if (hookIndex) hookIndex++
+  return [hook.state, setState]
 }
 
 function updateHostComponent(fiber: ElementType) {

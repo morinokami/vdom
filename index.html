@@ -10,13 +10,53 @@
     <div id="app"></div>
 
     <script type="module">
-      import { createElement, render } from './dist/vdom.js'
+      import { createElement, render, useState } from './dist/vdom.js'
       const app = document.getElementById('app')
-      const element = createElement(
-        'div',
-        { id: 'foo' },
-        createElement('p', null, 'rendered by vdom.'),
-      )
+
+      // Basic
+      // const element = createElement(
+      //   'div',
+      //   { id: 'foo' },
+      //   createElement('p', null, 'rendered by vdom.'),
+      // )
+      // render(element, app)
+
+      // Reconciliation
+      // const updateValue = (e) => {
+      //   rerender(e.target.value)
+      // }
+      // const rerender = (value) => {
+      //   const element = createElement(
+      //     'div',
+      //     null,
+      //     createElement('input', { onInput: updateValue, value }),
+      //     createElement('h2', null, `Hello ${value}`),
+      //   )
+      //   render(element, app)
+      // }
+      // rerender('World')
+
+      // Function Components
+      // function App(props) {
+      //   return createElement('h1', null, 'Hi ', props.name)
+      // }
+      // const element = createElement(App, {
+      //   name: 'foo',
+      // })
+      // render(element, app)
+
+      // Hooks
+      function Counter() {
+        const [state, setState] = useState(1)
+        return createElement(
+          'h1',
+          {
+            onClick: () => setState((c) => c + 1),
+          },
+          `Count: ${state}`,
+        )
+      }
+      const element = createElement(Counter)
       render(element, app)
     </script>
   </body>
