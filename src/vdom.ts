@@ -71,8 +71,8 @@ export function render(
   nextUnitOfWork = wipRoot
 }
 
-// while nextUnitOfWork: performUnitOfWork -> (createDom -> updateDom ->) reconcileChildren
-// finally: commitRoot -> commitWork
+// while nextUnitOfWork: performUnitOfWork (-> createDom -> updateDom) -> reconcileChildren
+// finally: commitRoot -> commitWork (-> updateDom)
 function workLoop(deadline: IdleDeadline) {
   let shouldYield = false
   while (nextUnitOfWork && !shouldYield) {
@@ -87,7 +87,7 @@ function workLoop(deadline: IdleDeadline) {
   requestIdleCallback(workLoop)
 }
 
-// performs a unit of work and returns the next unit of work
+// Performs a unit of work and returns the next unit of work
 function performUnitOfWork(fiber: ElementType) {
   // add dom node
   if (!fiber.dom) {
@@ -97,7 +97,7 @@ function performUnitOfWork(fiber: ElementType) {
   const children = fiber.props.children as ElementType[]
   reconcileChildren(fiber, children)
 
-  // search for the next unit of work (child -> sibling -> uncle)
+  // Search for the next unit of work (child -> sibling -> uncle)
   if (fiber.child) {
     return fiber.child
   }
@@ -110,7 +110,7 @@ function performUnitOfWork(fiber: ElementType) {
   }
 }
 
-// reconcile the old fibers with the new elements
+// Reconcile the old fibers with the new elements
 function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
   let index = 0
   let oldFiber = wipFiber.prev && wipFiber.prev.child
@@ -125,7 +125,7 @@ function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
 
     const sameType = oldFiber && child && child.type == oldFiber.type
 
-    // if the old fiber and the new element have the same type,
+    // If the old fiber and the new element have the same type,
     // we can keep the DOM node and just update it with the new props
     if (sameType) {
       newFiber = {
@@ -137,7 +137,7 @@ function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
         effectTag: 'UPDATE',
       }
     }
-    // if the type is different and there is a new element, it means
+    // If the type is different and there is a new element, it means
     // we need to create a new DOM node
     if (child && !sameType) {
       newFiber = {
@@ -149,7 +149,7 @@ function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
         effectTag: 'PLACEMENT',
       }
     }
-    // if the types are different and there is an old fiber,
+    // If the types are different and there is an old fiber,
     // we need to remove the old node
     if (oldFiber && !sameType) {
       oldFiber.effectTag = 'DELETION'
