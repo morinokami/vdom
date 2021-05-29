@@ -23,9 +23,17 @@ type ElementType = {
   // a link to the old fiber, the fiber that we committed to the DOM in the previous commit phase
   prev?: ElementType | null
   effectTag?: 'PLACEMENT' | 'DELETION' | 'UPDATE'
+  // TODO: Do not use `any`
+  hooks?: HookType<any>[]
 }
 
 type FunctionComponentType = (props: PropsType) => ElementType
+
+type ActionType<T> = (state: T) => T
+type HookType<T> = {
+  state: T
+  queue: ActionType<T>[]
+}
 
 export function createElement(
   type: string | FunctionComponentType,
@@ -57,6 +65,9 @@ let nextUnitOfWork: ElementType | null | undefined = null
 let currentRoot: RootElementType | null = null
 let wipRoot: RootElementType | null = null
 let deletions: ElementType[] | null = null
+
+let wipFiber: ElementType | null = null
+let hookIndex: number | null = null
 
 export function render(
   element: ElementType,
@@ -112,9 +123,45 @@ function performUnitOfWork(fiber: ElementType) {
 }
 
 function updateFunctionComponent(fiber: ElementType) {
+  wipFiber = fiber
+  hookIndex = 0
+  wipFiber.hooks = []
   const f = fiber.type as FunctionComponentType
   const children = [f(fiber.props)]
   reconcileChildren(fiber, children)
+}
+
+export function useState<T>(
+  initial: T,
+): [state: T, setState: (action: ActionType<T>) => void] {
+  const oldHook = hookIndex !== null ? wipFiber?.prev?.hooks?.[hookIndex] : null
+  const hook: HookType<T> = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  }
+
+  const actions: ActionType<T>[] = oldHook ? oldHook.queue : []
+  actions.forEach((action) => {
+    hook.state = action(hook.state)
+  })
+
+  const setState = (action: ActionType<T>) => {
+    hook.queue.push(action)
+    if (currentRoot) {
+      wipRoot = {
+        dom: currentRoot?.dom,
+        props: currentRoot?.props,
+        prev: currentRoot,
+      }
+    }
+
+    nextUnitOfWork = wipRoot
+    deletions = []
+  }
+
+  wipFiber?.hooks?.push(hook)
+  if (hookIndex) hookIndex++
+  return [hook.state, setState]
 }
 
 function updateHostComponent(fiber: ElementType) {
