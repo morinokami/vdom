@@ -110,6 +110,67 @@ function performUnitOfWork(fiber: ElementType) {
   }
 }
 
+// reconcile the old fibers with the new elements
+function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
+  let index = 0
+  let oldFiber = wipFiber.prev && wipFiber.prev.child
+  let prevSibling: ElementType | null = null
+
+  while (
+    index < children.length ||
+    (oldFiber !== null && oldFiber !== undefined)
+  ) {
+    const child = children[index]
+    let newFiber: ElementType | null = null
+
+    const sameType = oldFiber && child && child.type == oldFiber.type
+
+    // if the old fiber and the new element have the same type,
+    // we can keep the DOM node and just update it with the new props
+    if (sameType) {
+      newFiber = {
+        type: oldFiber?.type,
+        props: child.props,
+        dom: oldFiber?.dom,
+        parent: wipFiber,
+        prev: oldFiber,
+        effectTag: 'UPDATE',
+      }
+    }
+    // if the type is different and there is a new element, it means
+    // we need to create a new DOM node
+    if (child && !sameType) {
+      newFiber = {
+        type: child.type,
+        props: child.props,
+        dom: null,
+        parent: wipFiber,
+        prev: null,
+        effectTag: 'PLACEMENT',
+      }
+    }
+    // if the types are different and there is an old fiber,
+    // we need to remove the old node
+    if (oldFiber && !sameType) {
+      oldFiber.effectTag = 'DELETION'
+      deletions?.push(oldFiber)
+    }
+
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling
+    }
+
+    if (index === 0) {
+      wipFiber.child = newFiber
+    } else if (child && prevSibling) {
+      prevSibling.sibling = newFiber
+    }
+
+    prevSibling = newFiber
+    index++
+  }
+}
+
 function createDom(fiber: ElementType): HTMLElement | Text {
   const dom =
     fiber.type === 'TEXT_ELEMENT'
@@ -170,67 +231,6 @@ function updateDom(
       const handler = nextProps[name] as EventHandlerType
       dom.addEventListener(eventType, handler)
     })
-}
-
-// reconcile the old fibers with the new elements
-function reconcileChildren(wipFiber: ElementType, children: ElementType[]) {
-  let index = 0
-  let oldFiber = wipFiber.prev && wipFiber.prev.child
-  let prevSibling: ElementType | null = null
-
-  while (
-    index < children.length ||
-    (oldFiber !== null && oldFiber !== undefined)
-  ) {
-    const child = children[index]
-    let newFiber: ElementType | null = null
-
-    const sameType = oldFiber && child && child.type == oldFiber.type
-
-    // if the old fiber and the new element have the same type,
-    // we can keep the DOM node and just update it with the new props
-    if (sameType) {
-      newFiber = {
-        type: oldFiber?.type,
-        props: child.props,
-        dom: oldFiber?.dom,
-        parent: wipFiber,
-        prev: oldFiber,
-        effectTag: 'UPDATE',
-      }
-    }
-    // if the type is different and there is a new element, it means
-    // we need to create a new DOM node
-    if (child && !sameType) {
-      newFiber = {
-        type: child.type,
-        props: child.props,
-        dom: null,
-        parent: wipFiber,
-        prev: null,
-        effectTag: 'PLACEMENT',
-      }
-    }
-    // if the types are different and there is an old fiber,
-    // we need to remove the old node
-    if (oldFiber && !sameType) {
-      oldFiber.effectTag = 'DELETION'
-      deletions?.push(oldFiber)
-    }
-
-    if (oldFiber) {
-      oldFiber = oldFiber.sibling
-    }
-
-    if (index === 0) {
-      wipFiber.child = newFiber
-    } else if (child && prevSibling) {
-      prevSibling.sibling = newFiber
-    }
-
-    prevSibling = newFiber
-    index++
-  }
 }
 
 function commitRoot() {
